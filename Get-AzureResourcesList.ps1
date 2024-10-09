@@ -103,7 +103,7 @@ $headers = @{}
 # Get available Azure Subscriptions
 ##################################################
 Write-Output '- Get Azure Subscriptions List'
-$Subscriptions = Get-AzSubscription | Sort Name
+$Subscriptions = Get-AzSubscription | Sort-Object Name
 Write-Output $('  - Found ' + $Subscriptions.Count + ' subscriptions')
 
 $SubscriptionNumber = 0
