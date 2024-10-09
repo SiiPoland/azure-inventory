@@ -27,10 +27,12 @@ Invoke-WebRequest -Uri https://raw.githubusercontent.com/SiiPoland/azure-invento
 ```
 
 Additional parameters:
+```powershell
    -s (--SubscriptionId) - create report only for selected Subscription
    -wt (--with_Tags) - include tags in report
    -sl (--SubscriptionLimit) - limit number of subscriptions in report
    -Debug - show debug information
+```
 
 5. Download your report in CSV format. You will found it on your Storage Account in File Share. Details about them will be reported.
 
