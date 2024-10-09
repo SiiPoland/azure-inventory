@@ -1259,7 +1259,7 @@ foreach ($k in $headers.GetEnumerator()) {
     $headers_array += $k.Name
 }
 
-if ( $env:AZUREPS_HOST_ENVIRONMENT -like 'CloudShell' )
+if ( $env:AZUREPS_HOST_ENVIRONMENT -like 'cloud-shell' )
 {
     # Run in Cloud Shell Environment
     $ReportFileName_csv = 'AzureResourcesExport-' + $(Get-Date -format 'yyyy-MM-dd-HHmmss') + '.csv'
