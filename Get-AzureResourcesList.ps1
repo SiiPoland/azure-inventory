@@ -11,13 +11,6 @@ Script for prepare report of all resources in selected subscription
 Written By: Chris Polewiak
 Verification of the possibility of relocation based on the script from Tom FitzMacken (thanks)
 https://github.com/tfitzmac/resource-capabilities/blob/master/move-support-resources.csv
-
-Change Log
-V1.00, 15/05/2018 - Initial version
-V1.01, 28/07/2018 - Reporting SKU parameters
-V1.02, 07/07/2020 - Fix reporting SKU, Add reporting VM Disk size
-V1.03, 29/09/2020 - Tag added whether the resource can be moved to different resource group or a subscription
-v1.04, 07/10/2024 - Gather resources from all available subscriptions, move to the SiiPoland Repository
 #>
 
 
@@ -487,6 +480,7 @@ Foreach( $Subscription in $Subscriptions ) {
             'Microsoft.DataMigration/slots' {}
             'Microsoft.DataMigration/sqlmigrationservices' {}
             'Microsoft.DataProtection/BackupVaults' {}
+            'Microsoft.DataReplication/replicationVaults' {}
             'Microsoft.DataShare/accounts' {}
             'Microsoft.DBforMariaDB/servers' {}
             'Microsoft.DBforMySQL/flexibleServers' {}
@@ -1170,7 +1164,7 @@ Foreach( $Subscription in $Subscriptions ) {
 
             default {
                 Write-Output 'Resource Type not defined: ' + $ResourceItem.ResourceType
-                exit
+                # exit
             }
         }
 
