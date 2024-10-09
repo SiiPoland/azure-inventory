@@ -1163,7 +1163,7 @@ Foreach( $Subscription in $Subscriptions ) {
             'Microsoft.WorkloadMonitor/monitors' {}
 
             default {
-                Write-Output 'Resource Type not defined: ' + $ResourceItem.ResourceType
+                Write-Output $('Resource Type not defined: ' + $ResourceItem.ResourceType)
                 # exit
             }
         }
