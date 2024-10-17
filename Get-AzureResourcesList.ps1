@@ -1248,7 +1248,9 @@ Foreach( $Subscription in $Subscriptions ) {
     }
 }
 
-$headers
+if ($Debug) {
+    Write-Output $headers
+}
 
 #
 # Output Report
