@@ -31,6 +31,17 @@ if ( ! $(Get-AzContext) ) {
     Login-AzAccount
 }
 
+Write-Output $('Azure Inventory')
+Write-Output $('===========================================================================')
+Write-Output $('Script for prepare report of all resources in selected subscriptions')
+Write-Output $('             Tags Used: ' + $with_Tags)
+Write-Output $('            Debug Mode: ' + $Debug)
+Write-Output $(' Selected Subscription: ' + $selected_SubscriptionId)
+Write-Output $('    Subscription Limit: ' + $Subscription_Limit)
+Write-Output $('===========================================================================')
+
+
+
 # Import Resource Move to Region Capabilities from GitHub
 Write-Output '- Fetching Resource Move Capabilities Data between Regions'
 $ResourceCapabilities = ConvertFrom-Csv $(Invoke-WebRequest "https://raw.githubusercontent.com/tfitzmac/resource-capabilities/master/move-support-resources-with-regions.csv")
@@ -1209,6 +1220,7 @@ Foreach( $Subscription in $Subscriptions ) {
                     }
 
                     $property_name = 'Tag_' + $tag.Key
+                    if ($Debug) { Write-Output $('   - Tag: ' + $property_name + ' = ' + $tag.Value) }
                     if ( $null -eq $reportItem[$property_name] ) {
                         # Remove ending line characters from $tag.Value
                         $property_value = $tag.Value -replace "`r`n", ""
@@ -1236,6 +1248,8 @@ Foreach( $Subscription in $Subscriptions ) {
     }
 }
 
+$headers
+
 #
 # Output Report
 ##################################################
@@ -1258,11 +1272,11 @@ if ( $env:AZUREPS_HOST_ENVIRONMENT -like 'cloud-shell' )
     # Run in Cloud Shell Environment
     $ReportFileName_csv = 'AzureResourcesExport-' + $(Get-Date -format 'yyyy-MM-dd-HHmmss') + '.csv'
     $ReportFile_csv = $( $(Get-CloudDrive).MountPoint + '\' + $ReportFileName_csv )
-    $report | ConvertTo-Csv -NoTypeInformation | Out-File $ReportFile_csv
+    $report | Select-Object $headers_array | ConvertTo-Csv -NoTypeInformation | Out-File $ReportFile_csv
 
     $ReportFileName_json = 'AzureResourcesExport-' + $(Get-Date -format 'yyyy-MM-dd-HHmmss') + '.json'
     $ReportFile_json = $( $(Get-CloudDrive).MountPoint + '\' + $ReportFileName_json )
-    $report | ConvertTo-Json | Out-File $ReportFile_json
+    $report | Select-Object $headers_array | ConvertTo-Json | Out-File $ReportFile_json
 
     Write-Output $('- Your report is completed' )
     Write-Output $('   Storage Account: ' + $(Get-CloudDrive).Name )
@@ -1278,7 +1292,7 @@ else {
     
     $ReportFileName_json = 'AzureResourcesExport-' + $(Get-Date -format 'yyyy-MM-dd-HHmmss') + '.json'
     $ReportFile_json = $( $(Get-Location).Path + '\' + $ReportFileName_json);
-    $report | ConvertTo-Json | Out-File $ReportFile_json
+    $report | Select-Object $headers_array | ConvertTo-Json | Out-File $ReportFile_json
     
     Write-Output $('- Your report is completed' )
     Write-Output $('         File Name: ' + $ReportFile_csv )
