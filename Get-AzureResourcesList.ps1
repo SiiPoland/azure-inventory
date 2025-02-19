@@ -99,6 +99,7 @@ Class AzureResource
     [string]$MoveToRegion
     [string]$SubscriptionId
     [string]$ResourceId
+    [string]$ManagedBy
 }
 # define an array of additional headers
 $headers = @{}
@@ -125,14 +126,16 @@ Foreach( $Subscription in $Subscriptions ) {
     $SubscriptionName = $Subscription.Name
     Select-AzSubscription -SubscriptionId $SubscriptionID | Out-Null
 
-    Write-Output $('- Get Resources from Subscription (' + $SubscriptionNumber + '): ''' + $SubscriptionName + ''' (' + $SubscriptionID + ')')
+    Write-Output $('- Get Resources from Subscription (' + $SubscriptionNumber + '/' + $Subscriptions.Count + '): ''' + $SubscriptionName + ''' (' + $SubscriptionID + ')')
     $AzureResources = Get-AzResource 
     Write-Output $('  - Found ' + $AzureResources.Count + ' resources') 
 
     $ResourceNumber = 0
     Foreach( $ResourceItem in $AzureResources) {
         $ResourceNumber++
-        if ($Debug) { Write-Output $('  - ' + $ResourceNumber + ' : ' + $ResourceItem.ResourceType + ' : ' + $ResourceItem.Name) }
+        if ($Debug) {
+            Write-Output $('DEBUG: - S:' + $SubscriptionNumber + '/' + $Subscriptions.Count + ' R:' + $ResourceNumber + '/' + $AzureResources.Count + ' : ' + $ResourceItem.ResourceType + ' : ' + $ResourceItem.Name)
+        }
 
         $reportItem = New-Object AzureResource
 
@@ -176,7 +179,9 @@ Foreach( $Subscription in $Subscriptions ) {
             'Microsoft.AnalysisServices/servers' {}
             'Microsoft.ApiManagement/reportfeedback' {}
             'Microsoft.ApiManagement/service' {
+
                 $resourceData = Get-AzApiManagement -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
+
                 $reportItem.SkuName = $resourceData.Sku
                 $reportItem.SkuCapacity = $resourceData.Capacity
             }
@@ -218,6 +223,7 @@ Foreach( $Subscription in $Subscriptions ) {
             'Microsoft.AzureActiveDirectory/b2cdirectories' {}
             'Microsoft.AzureActiveDirectory/b2ctenants' {}
             'Microsoft.AzureArcData/SqlServerInstances' {}
+            'Microsoft.AzureArcData/SqlServerInstances/Databases' {}
             'Microsoft.AzureData/datacontrollers' {}
             'Microsoft.AzureData/hybriddatamanagers' {}
             'Microsoft.AzureData/postgresinstances' {}
@@ -283,6 +289,7 @@ Foreach( $Subscription in $Subscriptions ) {
                 $reportItem.SkuName = $resourceData.SkuName
             }
             'microsoft.cdn/profiles/endpoints' {}
+            'Microsoft.Cdn/profiles/afdendpoints' {}
             'Microsoft.CertificateRegistration/certificateOrders' {}
             'Microsoft.ClassicCompute/capabilities' {}
             'Microsoft.ClassicCompute/domainnames' {}
@@ -363,31 +370,34 @@ Foreach( $Subscription in $Subscriptions ) {
 
                 $resourceData = Get-AzVM -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
 
+                $reportItem.LicenseType = $resourceData.LicenseType
+                $reportItem.VMSize = $resourceData.HardwareProfile.VmSize
+                $reportItem.OsName = $resourceData.OsName
+                $reportItem.OsVersion = $resourceData.OsVersion
+                $reportItem.State = $resourceData.StatusCode
+
+                # Network Profile
                 $resourceItem_NetworkProfile = Get-AzResource -ResourceId $resourceData.NetworkProfile.NetworkInterfaces[0].id
                 $resourceData_NetworkProfile = Get-AzNetworkInterface -WarningAction SilentlyContinue -ResourceGroupName $resourceItem_NetworkProfile.ResourceGroupName -Name $resourceItem_NetworkProfile.Name
-
                 $reportItem.IpAddressPrivate = $resourceData_NetworkProfile.IpConfigurations.PrivateIpAddress
 
-                if ( $null -ne $resourceData_NetworkProfile.NetworkSecurityGroup.id ) {
-                    $resourceItem_NetworkSecurityGroup = Get-AzResource -ResourceId $resourceData_NetworkProfile.NetworkSecurityGroup.id
-                    $resourceData_NetworkSecurityGroup = Get-AzNetworkSecurityGroup -WarningAction SilentlyContinue -ResourceGroupName $resourceItem_NetworkSecurityGroup.ResourceGroupName -Name $resourceItem_NetworkSecurityGroup.Name
-                }
+                # # Network Security Group
+                # if ( $null -ne $resourceData_NetworkProfile.NetworkSecurityGroup.id ) {
+                #     $resourceItem_NetworkSecurityGroup = Get-AzResource -ResourceId $resourceData_NetworkProfile.NetworkSecurityGroup.id
+                #     $resourceData_NetworkSecurityGroup = Get-AzNetworkSecurityGroup -WarningAction SilentlyContinue -ResourceGroupName $resourceItem_NetworkSecurityGroup.ResourceGroupName -Name $resourceItem_NetworkSecurityGroup.Name
+                # }
+                # $reportItem.NSGName = $resourceData_NetworkSecurityGroup.Name
 
-                $reportItem.NSGName = $resourceData_NetworkSecurityGroup.Name
-
+                # Network Public IP Address
                 if ( $null -ne $resourceData_NetworkProfile.IpConfigurations.PublicIpAddress ) {
                     $resourceItem_PublicIpAddress = Get-AzResource -ResourceId $resourceData_NetworkProfile.IpConfigurations.PublicIpAddress[0].Id
                     $resourceData_PublicIpAddress = Get-AzPublicIpAddress -WarningAction SilentlyContinue -ResourceGroupName $resourceItem_PublicIpAddress.ResourceGroupName -Name $resourceItem_PublicIpAddress.Name
-
                     $reportItem.IpAddressPublic = $resourceData_PublicIpAddress.IpAddress
-                    $reportItem.FQDN = $resourceData_PublicIpAddress.DnsSettingsText
-                }
 
-                $reportItem.LicenseType = $resourceData.LicenseType
-                $reportItem.State = $resourceData.StatusCode
-                $reportItem.VMSize = $resourceData.VmSize
-                $reportItem.OsName = $resourceData.OsName
-                $reportItem.OsVersion = $resourceData.OsVersion
+                    if ( $null -ne $resourceData_PublicIpAddress.DnsSettingsText.Fqdn ) {
+                        $reportItem.FQDN = $resourceData_PublicIpAddress.DnsSettingsText.Fqdn
+                    }
+                }
             }
             'Microsoft.Compute/virtualMachines/extensions' {}
             'Microsoft.Compute/virtualMachineScaleSets' {}
@@ -578,6 +588,7 @@ Foreach( $Subscription in $Subscriptions ) {
             'Microsoft.EventHub/sku' {}
             'Microsoft.Experimentation/experimentworkspaces' {}
             'Microsoft.ExtendedLocation/customLocations' {}
+            'Microsoft.Fabric/capacities' {}
             'Microsoft.Falcon/namespaces' {}
             'Microsoft.Features/featureproviders' {}
             'Microsoft.Features/features' {}
@@ -780,6 +791,7 @@ Foreach( $Subscription in $Subscriptions ) {
             'Microsoft.Network/connectionMonitors' {}
             'Microsoft.Network/ddoscustompolicies' {}
             'Microsoft.Network/ddosProtectionPlans' {}
+            'Microsoft.Network/dnsForwardingRulesets' {}
             'Microsoft.Network/dnsResolvers' {}
             'Microsoft.Network/dnsResolvers/inboundEndpoints' {}
             'Microsoft.Network/dnsResolvers/outboundEndpoints' {}
@@ -1184,56 +1196,10 @@ Foreach( $Subscription in $Subscriptions ) {
         ##################################################
         if ( $with_Tags ) {
             if ( $null -ne $ResourceItem.Tags ) {
-                Foreach( $tag in $ResourceItem.Tags.GetEnumerator() ) {
-                    if ( $tag.Key -like 'hidden-*' ) {
-                        continue
-                    }
-                    if ( $tag.Key -like 'link:*' ) {
-                        continue
-                    }
-                    if ( $tag.Key -like 'aks-managed*' ) {
-                        continue
-                    }
-                    if ( $tag.Key -like 'ms-resource*' ) {
-                        continue
-                    }
-                    if ( $tag.Key -like 'k8s-*' ) {
-                        continue
-                    }
-                    if ( $tag.Key -like 'ms.*' ) {
-                        continue
-                    }
-                    if ( $tag.Key -like 'kubernetes.io*' ) {
-                        continue
-                    }
-                    if ( $tag.Key -like 'AzHydration-*' ) {
-                        continue
-                    }
-                    if ( $tag.Key -like 'aca-managed*' ) {
-                        continue
-                    }
-                    if ( $tag.Key -like 'APIKey' ) {
-                        continue
-                    }
-                    if ( $tag.Key -like 'RSVaultBackup*' ) {
-                        continue
-                    }
-
-                    $property_name = 'Tag_' + $tag.Key
-                    if ($Debug) { Write-Output $('   - Tag: ' + $property_name + ' = ' + $tag.Value) }
-                    if ( $null -eq $reportItem[$property_name] ) {
-                        # Remove ending line characters from $tag.Value
-                        $property_value = $tag.Value -replace "`r`n", ""
-                        $reportItem | Add-Member -MemberType NoteProperty -Name $property_name -Value $property_value
-                        $headers[$property_name] = 1
-                    }
-                    else {
-                        $reportItem[$property_name] = $tag.value
-                    }
-                }
+                $tags_json = Write-Output $($ResourceItem.Tags | ConvertTo-Json -Compress )
+                $reportItem | Add-Member -MemberType NoteProperty -Name "Tags" -Value $tags_json
             }
         }
-
 
         if ( $ResourceCapabilitiesData[ $ResourceItem.ResourceType ] ) {
             $reportItem.MoveToResourceGroup = $ResourceCapabilitiesData[ $ResourceItem.ResourceType ].MoveToResourceGroup
@@ -1243,13 +1209,18 @@ Foreach( $Subscription in $Subscriptions ) {
         $reportItem.SubscriptionId = $SubscriptionID
         $reportItem.ResourceId = $ResourceItem.ResourceId
 
+        if ( $resourceData.ManagedBy ) {
+           $reportItem.ManagedBy = $resourceData.ManagedBy
+        }
         $report += $reportItem
 
     }
 }
 
-if ($Debug) {
-    Write-Output $headers
+foreach ($k in $($report | select-object | Get-Member -MemberType Properties)) {
+    if ( $null -eq $headers[$k.Name] ) {
+        $headers[$k.Name] = 1
+    }
 }
 
 #
@@ -1261,11 +1232,10 @@ if ($report.Count -eq 0) {
     Write-Output 'No resources found'
     exit
 }
+
 $headers_array = @()
-foreach ($k in $($report | select-object | Get-Member -MemberType Properties)) {
-    $headers_array += $k.Name
-}
-foreach ($k in $headers.GetEnumerator()) {
+
+foreach ($k in $headers.GetEnumerator() | Sort-Object) {
     $headers_array += $k.Name
 }
 
@@ -1290,11 +1260,13 @@ else {
     # Run in Local Environment
     $ReportFileName_csv = 'AzureResourcesExport-' + $(Get-Date -format 'yyyy-MM-dd-HHmmss') + '.csv'
     $ReportFile_csv = $( $(Get-Location).Path + '\' + $ReportFileName_csv );
-    $report | Select-Object $headers_array | Export-CSV -NoTypeInformation -Path $ReportFile_csv
+
+
+    $report | Select-Object -prop $headers_array | Sort-Object | Export-CSV -NoTypeInformation -Path $ReportFile_csv
     
     $ReportFileName_json = 'AzureResourcesExport-' + $(Get-Date -format 'yyyy-MM-dd-HHmmss') + '.json'
     $ReportFile_json = $( $(Get-Location).Path + '\' + $ReportFileName_json);
-    $report | Select-Object $headers_array | ConvertTo-Json | Out-File $ReportFile_json
+    $report | Select-Object -prop $headers_array | Sort-Object | ConvertTo-Json | Out-File $ReportFile_json
     
     Write-Output $('- Your report is completed' )
     Write-Output $('         File Name: ' + $ReportFile_csv )
