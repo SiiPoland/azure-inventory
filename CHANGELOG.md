@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [1.09] - 2025-02-21
+
+### Added
+
+- new functionality which allows to break processing and continue
+  for this case additional directory is created with processed data.
+  this data can be automatically reused when script is run again with -continue option
+
+## Changed
+
+- modified tags processed from SQL Database to include more information
+
 ## [1.08] - 2025-02-21
 
 ### Added
