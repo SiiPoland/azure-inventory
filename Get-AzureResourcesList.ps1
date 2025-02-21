@@ -19,7 +19,7 @@ param (
     [string]$selected_SubscriptionId = "",
 
     [Alias("wt","tags")]
-    [bool]$with_Tags = $false,
+    [bool]$with_Tags = $true,
 
     [Alias("sl","SubscriptionLimit")]
     [int]$Subscription_Limit = 0,
@@ -1171,6 +1171,7 @@ Foreach( $Subscription in $Subscriptions ) {
                 $reportItem.SkuSize = $resourceData_ASP.Sku.Size
                 $reportItem.SkuFamily = $resourceData_ASP.Sku.Family
                 $reportItem.SkuCapacity = $resourceData_ASP.Sku.Capacity
+                $reportItem.Kind = $resourceData.Kind
             }
             'Microsoft.Web/sites/premieraddons' {}
             'Microsoft.Web/sites/slots' {}

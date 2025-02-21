@@ -5,11 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [1.08] - 2025-02-21
+
+### Added
+
+- Update item "Kind" from App Service Plans to specify OS type of the service - app,linux means linux, other means windows
+
 ## [1.07] - 2025-02-19
 
 ### Added
 
-- New resouece "ManagedBy" which allows to see which resource is a parent of the resource
+- New item "ManagedBy" which allows to see which resource is a parent of the resource
 
 ### Changed
 
