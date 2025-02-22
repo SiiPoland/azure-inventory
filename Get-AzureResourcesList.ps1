@@ -27,10 +27,6 @@ param (
     [bool]$jobContinue = $false
 )
 
-# Load functions
-. .\modules\my-ExportReport.ps1
-. .\modules\my-GetAdditionalData.ps1
-
 if ( ! $(Get-AzContext) ) { 
     Login-AzAccount
 }
