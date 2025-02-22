@@ -162,7 +162,8 @@ else {
     $subscriptions = Get-Content $file_SubscriptionList | ConvertFrom-Json
 }
 Write-Output $('  - Found ' + $Subscriptions.Count + ' subscriptions')
-
+# Sort subscriptions by Id
+$Subscriptions = $Subscriptions | Sort-Object SubscriptionId
 
 # Main Loop
 # Processing subscriptions and resources
@@ -246,16 +247,12 @@ Foreach( $Subscription in $Subscriptions ) {
             'Microsoft.AnalysisServices/servers' {}
             'Microsoft.ApiManagement/reportfeedback' {}
             'Microsoft.ApiManagement/service' {
-    
                 $resourceData = Get-AzApiManagement -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
-    
                 $reportItem.SkuName = $resourceData.Sku
                 $reportItem.SkuCapacity = $resourceData.Capacity
             }
             'Microsoft.App/containerApps' {
-    
                 $resourceData = Get-AzContainerApp -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
-    
                 $reportItem.WorkloadProfileName = $resourceData.WorkloadProfileName
             }
             'Microsoft.App/jobs' {}
@@ -328,9 +325,7 @@ Foreach( $Subscription in $Subscriptions ) {
             'Microsoft.Blueprint/blueprints' {}
             'Microsoft.BotService/botServices' {}
             'Microsoft.Cache/Redis' {
-    
                 $resourceData = Get-AzRedisCache -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
-    
                 $reportItem.StorageSize = $resourceData.Size
                 $reportItem.SkuName = $resourceData.Sku
             }
@@ -350,9 +345,7 @@ Foreach( $Subscription in $Subscriptions ) {
             'Microsoft.Cdn/cdnwebapplicationfirewallpolicies' {}
             'Microsoft.Cdn/edgenodes' {}
             'microsoft.cdn/profiles' {
-    
                 $resourceData = Get-AzCdnProfile -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
-                
                 $reportItem.SkuName = $resourceData.SkuName
             }
             'microsoft.cdn/profiles/endpoints' {}
@@ -383,9 +376,7 @@ Foreach( $Subscription in $Subscriptions ) {
             'Microsoft.ClassicStorage/vmimages' {}
             'Microsoft.ClassicSubscription/operations' {}
             'Microsoft.CognitiveServices/accounts' {
-    
                 $resourceData = Get-AzCognitiveServicesAccount -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
-    
                 $reportItem.SkuName = $resourceData.Sku.Name
                 $reportItem.SkuTier = $resourceData.Sku.Tier
                 $reportItem.SkuSize = $resourceData.Sku.Size
@@ -403,9 +394,7 @@ Foreach( $Subscription in $Subscriptions ) {
             'Microsoft.Compute/diskaccesses' {}
             'Microsoft.Compute/diskencryptionsets' {}
             'Microsoft.Compute/disks' {
-                
                 $resourceData = Get-AzDisk -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -DiskName $ResourceItem.Name
-    
                 $reportItem.OsType = $resourceData.OsType
                 $reportItem.StorageSize = $resourceData.DiskSizeGB
                 $reportItem.SkuName = $resourceData.Sku.Name
@@ -423,9 +412,7 @@ Foreach( $Subscription in $Subscriptions ) {
             'Microsoft.Compute/sharedvmimages' {}
             'Microsoft.Compute/sharedvmimages/versions' {}
             'Microsoft.Compute/snapshots' {
-    
                 $resourceData = Get-AzSnapshot -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
-    
                 $reportItem.OsType = $resourceData.OsType
                 $reportItem.StorageSize = $resourceData.DiskSizeGB
                 $reportItem.SkuName = $resourceData.Sku.Name
@@ -433,37 +420,12 @@ Foreach( $Subscription in $Subscriptions ) {
             }
             'Microsoft.Compute/sshPublicKeys' {}
             'Microsoft.Compute/virtualMachines' {
-    
                 $resourceData = Get-AzVM -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
-    
                 $reportItem.LicenseType = $resourceData.LicenseType
                 $reportItem.VMSize = $resourceData.HardwareProfile.VmSize
                 $reportItem.OsName = $resourceData.OsName
                 $reportItem.OsVersion = $resourceData.OsVersion
                 $reportItem.State = $resourceData.StatusCode
-    
-                # Network Profile
-                $resourceItem_NetworkProfile = Get-AzResource -ResourceId $resourceData.NetworkProfile.NetworkInterfaces[0].id
-                $resourceData_NetworkProfile = Get-AzNetworkInterface -WarningAction SilentlyContinue -ResourceGroupName $resourceItem_NetworkProfile.ResourceGroupName -Name $resourceItem_NetworkProfile.Name
-                $reportItem.IpAddressPrivate = $resourceData_NetworkProfile.IpConfigurations.PrivateIpAddress
-    
-                # # Network Security Group
-                # if ( $null -ne $resourceData_NetworkProfile.NetworkSecurityGroup.id ) {
-                #     $resourceItem_NetworkSecurityGroup = Get-AzResource -ResourceId $resourceData_NetworkProfile.NetworkSecurityGroup.id
-                #     $resourceData_NetworkSecurityGroup = Get-AzNetworkSecurityGroup -WarningAction SilentlyContinue -ResourceGroupName $resourceItem_NetworkSecurityGroup.ResourceGroupName -Name $resourceItem_NetworkSecurityGroup.Name
-                # }
-                # $reportItem.NSGName = $resourceData_NetworkSecurityGroup.Name
-    
-                # Network Public IP Address
-                if ( $null -ne $resourceData_NetworkProfile.IpConfigurations.PublicIpAddress ) {
-                    $resourceItem_PublicIpAddress = Get-AzResource -ResourceId $resourceData_NetworkProfile.IpConfigurations.PublicIpAddress[0].Id
-                    $resourceData_PublicIpAddress = Get-AzPublicIpAddress -WarningAction SilentlyContinue -ResourceGroupName $resourceItem_PublicIpAddress.ResourceGroupName -Name $resourceItem_PublicIpAddress.Name
-                    $reportItem.IpAddressPublic = $resourceData_PublicIpAddress.IpAddress
-    
-                    if ( $null -ne $resourceData_PublicIpAddress.DnsSettingsText.Fqdn ) {
-                        $reportItem.FQDN = $resourceData_PublicIpAddress.DnsSettingsText.Fqdn
-                    }
-                }
             }
             'Microsoft.Compute/virtualMachines/extensions' {}
             'Microsoft.Compute/virtualMachineScaleSets' {}
@@ -496,17 +458,13 @@ Foreach( $Subscription in $Subscriptions ) {
             'Microsoft.Consumption/terms' {}
             'Microsoft.Consumption/usagedetails' {}
             'Microsoft.ContainerInstance/containerGroups' {
-    
                 $resourceData = Get-AzContainerGroup -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
-    
                 $reportItem.OsType = $resourceData.OsType
                 $reportItem.SkuName = $resourceData.Sku
             }
             'Microsoft.ContainerInstance/serviceassociationlinks' {}
             'Microsoft.ContainerRegistry/registries' {
-    
                 $resourceData = Get-AzContainerRegistry -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
-    
                 $reportItem.SkuName = $resourceData.SkuName
                 $reportItem.SkuTier = $resourceData.SkuTier
             }
@@ -546,9 +504,7 @@ Foreach( $Subscription in $Subscriptions ) {
             'Microsoft.DataBoxEdge/availableskus' {}
             'Microsoft.DataBoxEdge/databoxedgedevices' {}
             'Microsoft.Databricks/workspaces' {
-    
                 $resourceData = Get-AzDatabricksWorkspace -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
-    
                 $reportItem.SkuName = $resourceData_NetworkProfile.IpConfigurations.SkuName
                 $reportItem.SkuTier = $resourceData_NetworkProfile.IpConfigurations.SkuTier
             }
@@ -573,18 +529,14 @@ Foreach( $Subscription in $Subscriptions ) {
             'Microsoft.DBforMySQL/flexibleServers' {}
             'Microsoft.DBforMySQL/servers' {}
             'Microsoft.DBforPostgreSQL/flexibleServers' {
-    
                 $resourceData = Get-AzPostgreSqlFlexibleServer -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
-    
                 $reportItem.SkuName = $resourceData.SkuName
                 $reportItem.SkuTier = $resourceData.SkuTier
                 $reportItem.State = $resourceData.State
                 $reportItem.StorageSize = $resourceData.StorageSizeGb
             }
             'Microsoft.DBforPostgreSQL/servers' {
-    
                 $resourceData = Get-AzPostgreSqlServer -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
-    
                 $reportItem.Kind = $resourceData.Kind
                 $reportItem.SkuCapacity = $resourceData.SkuCapacity
                 $reportItem.SkuFamily = $resourceData.SkuFamily
@@ -620,9 +572,7 @@ Foreach( $Subscription in $Subscriptions ) {
             'Microsoft.DevTestLab/schedules' {}
             'Microsoft.DigitalTwins/digitaltwinsinstances' {}
             'Microsoft.DocumentDb/databaseAccounts' {
-    
                 $resourceData = Get-AzCosmosDBAccount -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
-                
                 $reportItem.OfferType = $resourceData.DatabaseAccountOfferType
                 $reportItem.Kind = $resourceData.Kind
             }
@@ -643,9 +593,7 @@ Foreach( $Subscription in $Subscriptions ) {
             'Microsoft.EventGrid/topictypes' {}
             'Microsoft.EventHub/clusters' {}
             'Microsoft.EventHub/namespaces' {
-    
                 $resourceData = Get-AzEventHubNamespace -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
-    
                 $reportItem.SkuCapacity = $resourceData.SkuCapacity
                 $reportItem.SkuName = $resourceData.SkuName
                 $reportItem.SkuTier = $resourceData.SkuTier
@@ -727,9 +675,7 @@ Foreach( $Subscription in $Subscriptions ) {
             'Microsoft.KeyVault/hsmpools' {}
             'Microsoft.KeyVault/managedhsms' {}
             'Microsoft.KeyVault/vaults' {
-    
                 $ResourceData = Get-AzKeyVault -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
-    
                 $reportItem.SkuName = $ResourceData.Sku
             }
             'Microsoft.Kubernetes/connectedclusters' {}
@@ -737,9 +683,7 @@ Foreach( $Subscription in $Subscriptions ) {
             'Microsoft.KubernetesConfiguration/privateLinkScopes' {}
             'Microsoft.KubernetesConfiguration/sourcecontrolconfigurations' {}
             'Microsoft.Kusto/clusters' {
-    
                 $resourceData = Get-AzKustoCluster -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
-    
                 $reportItem.SkuCapacity = $resourceData.SkuCapacity
                 $reportItem.SkuName = $resourceData.SkuName
                 $reportItem.SkuTier = $resourceData.SkuTier
@@ -764,9 +708,7 @@ Foreach( $Subscription in $Subscriptions ) {
             'Microsoft.MachineLearningExperimentation/teamaccounts' {}
             'Microsoft.MachineLearningModelManagement/accounts' {}
             'Microsoft.MachineLearningServices/workspaces' {
-    
                 $resourceData = Get-AzMlWorkspace -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
-    
                 $reportItem.Kind = $resourceData.Kind
                 $reportItem.SkuCapacity = $resourceData.SkuCapacity
                 $reportItem.SkuFamily = $resourceData.SkuFamily
@@ -835,9 +777,7 @@ Foreach( $Subscription in $Subscriptions ) {
             'Microsoft.NetApp/netappaccounts/capacitypools/volumes/mounttargets' {}
             'Microsoft.NetApp/netappaccounts/capacitypools/volumes/snapshots' {}
             'Microsoft.Network/applicationGateways' {
-    
                 $resourceData = Get-AzApplicationGateway -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
-    
                 $reportItem.SkuName = $resourceData.Sku.Name
                 $reportItem.SkuTier = $resourceData.Sku.Tier
                 $reportItem.SkuCapacity = $resourceData.Sku.Capacity
@@ -845,9 +785,7 @@ Foreach( $Subscription in $Subscriptions ) {
             'Microsoft.Network/applicationGatewayWebApplicationFirewallPolicies' {}
             'Microsoft.Network/applicationSecurityGroups' {}
             'Microsoft.Network/azureFirewalls' {
-    
                 $resourceData = Get-AzFirewall -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
-    
                 $reportItem.SkuName = $resourceData.Sku.Name
                 $reportItem.SkuTier = $resourceData.Sku.Tier
             }
@@ -866,9 +804,7 @@ Foreach( $Subscription in $Subscriptions ) {
             'Microsoft.Network/expressroutegateways' {}
             'Microsoft.Network/expressrouteserviceproviders' {}
             'Microsoft.Network/firewallPolicies' {
-    
                 $resourceData = Get-AzFirewallPolicy -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
-    
                 $reportItem.SkuTier = $resourceData.Sku.Tier
             }
             'Microsoft.Network/frontdoors' {}
@@ -877,9 +813,7 @@ Foreach( $Subscription in $Subscriptions ) {
             'Microsoft.Network/loadBalancers' {}
             'Microsoft.Network/localNetworkGateways' {}
             'Microsoft.Network/natGateways' {
-    
                 $resourceData = Get-AzNatGateway -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
-    
                 $reportItem.SkuName = $resourceData.Sku.Name
             }
             'Microsoft.Network/networkexperimentprofiles' {}
@@ -899,9 +833,7 @@ Foreach( $Subscription in $Subscriptions ) {
             'Microsoft.Network/privateEndpoints' {}
             'Microsoft.Network/privatelinkservices' {}
             'Microsoft.Network/publicIPAddresses' {
-    
                 $resourceData = Get-AzPublicIpAddress -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
-    
                 $reportItem.IpAddressPublic = $resourceData.IpAddress
                 $reportItem.SkuName = $resourceData.Sku.Name
                 $reportItem.SkuTier = $resourceData.Sku.Tier
@@ -916,15 +848,11 @@ Foreach( $Subscription in $Subscriptions ) {
             'Microsoft.Network/trafficmanagerprofiles/heatmaps' {}
             'Microsoft.Network/trafficmanagerusermetricskeys' {}
             'Microsoft.Network/virtualHubs' {
-    
                 $resourceData = Get-AzVirtualHub -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
-    
                 $reportItem.SkuName = $resourceData.Sku
             }
             'Microsoft.Network/virtualNetworkGateways' {
-    
                 $resourceData = Get-AzVirtualNetworkGateway -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
-    
                 $reportItem.Type = $resourceData.VpnType
                 $reportItem.SkuCapacity = $resourceData.Sku.Capacity
                 $reportItem.SkuName = $resourceData.Sku.Name
@@ -934,9 +862,7 @@ Foreach( $Subscription in $Subscriptions ) {
             'Microsoft.Network/virtualnetworktaps' {}
             'Microsoft.Network/virtualrouters' {}
             'Microsoft.Network/virtualWans' {
-    
                 $resourceData = Get-AzVirtualWan -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
-    
                 $reportItem.Type = $resourceData.VirtualWanType
             }
             'Microsoft.Network/vpnGateways' {}
@@ -987,9 +913,7 @@ Foreach( $Subscription in $Subscriptions ) {
             'Microsoft.RecoveryServices/vaults' {}
             'Microsoft.RedHatOpenShift/openshiftclusters' {}
             'Microsoft.Relay/namespaces' {
-    
                 $resourceData = Get-AzRelayNamespace -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
-    
                 $reportItem.SkuName = $resourceData.SkuName
                 $reportItem.SkuTier = $resourceData.SkuTier
                 $reportItem.State = $resourceData.Status
@@ -1080,9 +1004,7 @@ Foreach( $Subscription in $Subscriptions ) {
             'Microsoft.ServerManagement/gateways' {}
             'Microsoft.ServerManagement/nodes' {}
             'Microsoft.ServiceBus/namespaces' {
-    
                 $resourceData = Get-AzServiceBusNamespace -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
-    
                 $reportItem.SkuCapacity = $resourceData.SkuCapacity
                 $reportItem.SkuName = $resourceData.SkuName
                 $reportItem.SkuTier = $resourceData.SkuTier
@@ -1121,15 +1043,12 @@ Foreach( $Subscription in $Subscriptions ) {
 #                $resourceData = Get-AzSqlServer -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -ServerName $ResourceItem.Name
             }
             'Microsoft.Sql/servers/databases' {
-                # get left part from the name before "/"
                 $ServerName = $ResourceItem.Name.Split("/")[0]
                 $DBName = $ResourceItem.Name.Split("/")[1]
-
                 $ResourceData = Get-AzSqlDatabase -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -ServerName $ServerName -DatabaseName $DBName
                 $reportItem.SkuName = $ResourceData.SkuName
                 $reportItem.SkuFamily = $dbname.Family
                 $reportItem.SkuCapacity = $dbname.Capacity
-
             }
             'Microsoft.Sql/servers/databases/backuplongtermretentionpolicies' {}
             'Microsoft.Sql/servers/elasticpools' {}
@@ -1139,9 +1058,7 @@ Foreach( $Subscription in $Subscriptions ) {
             'Microsoft.SqlVirtualMachine/SqlVirtualMachineGroups' {}
             'Microsoft.SqlVirtualMachine/SqlVirtualMachines' {}
             'Microsoft.Storage/storageAccounts' {
-    
                 $resourceData = Get-AzStorageAccount -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
-    
                 $reportItem.Kind = $ResourceItem.Kind
                 $reportItem.SkuName = $ResourceItem.Sku.Name
                 $reportItem.SkuTier = $ResourceItem.Sku.Tier
@@ -1204,22 +1121,18 @@ Foreach( $Subscription in $Subscriptions ) {
             'Microsoft.Web/resourcehealthmetadata' {}
             'Microsoft.Web/runtimes' {}
             'Microsoft.Web/serverFarms' {
-    
                 $resourceData = Get-AzAppServicePlan -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
-    
                 $reportItem.SkuName = $resourceData.Sku.Name
                 $reportItem.SkuTier = $resourceData.Sku.Tier
                 $reportItem.SkuSize = $resourceData.Sku.Size
                 $reportItem.SkuFamily = $resourceData.Sku.Family
-                $reportItem.SkuCapacity = $resourceData.Sku.Capacity    
+                $reportItem.SkuCapacity = $resourceData.Sku.Capacity   
+                $reportItem.Kind = $resourceData.Kind 
             }
             'Microsoft.Web/serverfarms/eventgridfilters' {}
             'Microsoft.Web/sites' {
-    
                 $resourceData = Get-AzWebApp -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
-    
                 $reportItem.State = $resourceData.State
-    
             }
             'Microsoft.Web/sites/premieraddons' {}
             'Microsoft.Web/sites/slots' {}
@@ -1236,11 +1149,9 @@ Foreach( $Subscription in $Subscriptions ) {
     
             default {
                 Write-Output $('Resource Type not defined: ' + $ResourceItem.ResourceType)
-                # exit
             }
         }
         if ( $resourceData.ManagedBy ) {
-    
             $reportItem.ManagedBy = $resourceData.ManagedBy
         }
     
