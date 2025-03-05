@@ -1129,6 +1129,10 @@ Foreach( $Subscription in $Subscriptions ) {
             'Microsoft.Web/sites' {
                 $resourceData = Get-AzWebApp -WarningAction SilentlyContinue -ResourceGroupName $ResourceItem.ResourceGroupName -Name $ResourceItem.Name
                 $reportItem.State = $resourceData.State
+                $resourceData.SiteConfig
+
+                $reportItem.ManagedBy = $resourceData.ServerFarmId
+                exit
             }
             'Microsoft.Web/sites/premieraddons' {}
             'Microsoft.Web/sites/slots' {}
