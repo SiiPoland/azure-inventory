@@ -2,8 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](http://keepachangelog.com/)
-and this project adheres to [Semantic Versioning](http://semver.org/).
+
+## [2.00] - 2025-06-02
+
+### Added
+- additional scripts:
+  - `Export-AzureResourceGroups.ps1` - Report list of all resource groups
+  - `Export-AzureResources.ps1` - Report list of all resources in all subscriptions
+  - `Export-AzureMetrics-Compute-VMs.ps1` - Report list of all metrics for all VMs in all subscriptions
+  - `Export-AzureMetrics-Sql-servers.ps1` - Report list of all metrics for all SQL Servers in all subscriptions
+  - `Export-AzureMetrics-Web-serverFarms.ps1` - Report list of all metrics for all App Service Plans in all subscriptions
+  - `Export-AzureBilling.ps1` - Report list of all billing information for all subscriptions
+
+### Changed
+  - !!! Breaking change !!! - the script will use Az module 13.4 and later
+  - !!! Breaking change !!! - there are new scripts for reporting resources, metrics and billing information
+  - Main Resource Export script was totally rewriten
 
 ## [1.09] - 2025-02-21
 
@@ -13,7 +27,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   for this case additional directory is created with processed data.
   this data can be automatically reused when script is run again with -continue option
 
-## Changed
+### Changed
 
 - modified tags processed from SQL Database to include more information
 
