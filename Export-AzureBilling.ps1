@@ -63,7 +63,7 @@ while($startDate.AddMonths($months) -le $endDate)
 #$months = $months - 1
 
 if ( $months -gt 1 ) {
-    $filenameDateString = "AzureBilling-$type-LastMonths.csv"
+    $filenameDateString = "AzureBilling-$type-Last-$months-Months.csv"
     $startDate = $startDate.ToString("yyyy-MM-dd")
     $endDate   = $endDate.ToString("yyyy-MM-dd")
 }
