@@ -1,3 +1,6 @@
+# Install CostManagement Module
+# Install-Module Az.CostManagement
+
 param (
     [Parameter(Mandatory,
     HelpMessage="Add start date of Billing report in format YYYY-MM-DD")]
@@ -115,10 +118,10 @@ Foreach( $subscription in $subscriptions ) {
                 "type" = "Dimension";
                 "name" = "ServiceName"
             },
-            @{
-                "type" = "Dimension";
-                "name" = "ServiceTier"
-            },
+            # @{
+            #     "type" = "Dimension";
+            #     "name" = "ServiceTier"
+            # },
             @{
                 "type" = "Dimension";
                 "name" = "Meter"
