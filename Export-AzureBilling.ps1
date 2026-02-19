@@ -62,16 +62,21 @@ while($startDate.AddMonths($months) -le $endDate)
 }
 #$months = $months - 1
 
+$filenameDateString = "AzureBilling-$type"
 if ( $months -gt 1 ) {
-    $filenameDateString = "AzureBilling-$type-Last-$months-Months.csv"
     $startDate = $startDate.ToString("yyyy-MM-dd")
     $endDate   = $endDate.ToString("yyyy-MM-dd")
+    $filenameDateString += "-$startDate-to-$endDate"
 }
 elseif ( $reportDateFrom ) {
-    $filenameDateString = "AzureBilling-$type-$((Get-Date -day 1 -Month $reportDateFrom.Month -Year $reportDateFrom.Year ).ToString("yyyy-MM")).csv"
     $startDate = $startDate.ToString("yyyy-MM-dd")
     $endDate   = $endDate.ToString("yyyy-MM-dd")
+    $filenameDateString += "-$startDate-to-$endDate"
 }
+if ( $subscriptionId ) {
+    $filenameDateString += "-for-$subscriptionId"
+}
+$filenameDateString += ".csv"
 
 if ( $outFilename ) {
     $filenameDateString = $outFilename
