@@ -1,5 +1,10 @@
 # Install CostManagement Module
 # Install-Module Az.CostManagement
+$moduleName = "Az.CostManagement"
+if (-not (Get-Module -ListAvailable -Name $moduleName)) {
+    Install-Module -Name $moduleName -Repository PSGallery -Scope CurrentUser -Force
+}
+Import-Module $moduleName
 
 param (
     [Parameter(Mandatory,
