@@ -136,10 +136,6 @@ Foreach( $subscription in $subscriptions ) {
                 "type" = "Dimension";
                 "name" = "ServiceName"
             },
-            # @{
-            #     "type" = "Dimension";
-            #     "name" = "ServiceTier"
-            # },
             @{
                 "type" = "Dimension";
                 "name" = "Meter"
@@ -184,13 +180,19 @@ Foreach( $subscription in $subscriptions ) {
         else {
             for ($index = 0; $index -lt $result.Row.Count; $index++) {
 
+                # Write-Host "0 Qutation: " + $result.Row[$index][0]
+                # Write-host "1 Billing Month: " + $([DateTime]$result.Row[$index][1]).ToString("yyyy-MM")
+                # Write-Host "2 ResourceId: " + $result.Row[$index][2]
+                # Write-Host "3 ServiceName: " + $result.Row[$index][3]
+                # Write-Host "4 Meter: " + $result.Row[$index][4]
+                # Write-Host "5 BillingCurrency: " + $result.Row[$index][5]
+
                 $BillingQuotation = $result.Row[$index][0]
                 $BillingMonth = $([DateTime]$result.Row[$index][1]).ToString("yyyy-MM")
                 $ResourceId = $result.Row[$index][2]
                 $ServiceName = $result.Row[$index][3]
-                $ServiceTier = $result.Row[$index][4]
-                $Meter = $result.Row[$index][5]
-                $BillingCurrency = $result.Row[$index][6]
+                $Meter = $result.Row[$index][4]
+                $BillingCurrency = $result.Row[$index][5]
 
                 # Write-Host ".. Billing Month: $BillingMonth Resource: $ResourceId Quotation: $BillingQuotation Currency: $BillingCurrency"
 
@@ -200,12 +202,12 @@ Foreach( $subscription in $subscriptions ) {
                 $BillingItem.BillingMonth = $BillingMonth
                 $BillingItem.ResourceId = $ResourceId
                 $BillingItem.ServiceName = $ServiceName
-                $BillingItem.ServiceTier = $ServiceTier
                 $BillingItem.Meter = $Meter
                 $BillingItem.BillingQuotation = $BillingQuotation
                 $BillingItem.BillingCurrency = $BillingCurrency
                 $report += $BillingItem
             }
+            Exit-PSSession
         }
 
     }
