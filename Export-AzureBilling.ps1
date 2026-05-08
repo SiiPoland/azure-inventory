@@ -1,21 +1,13 @@
-# Install CostManagement Module
-# Install-Module Az.CostManagement
-$moduleName = "Az.CostManagement"
-if (-not (Get-Module -ListAvailable -Name $moduleName)) {
-    Install-Module -Name $moduleName -Repository PSGallery -Scope CurrentUser -Force
-}
-Import-Module $moduleName
-
 param (
     [Parameter(Mandatory,
     HelpMessage="Add start date of Billing report in format YYYY-MM-DD")]
     [Alias("datefrom")]
-    [DateTime]$reportDateFrom = (Get-Date -day 1),
+    [DateTime]$reportDateFrom = (Get-Date -Day 1),
 
     [Parameter(Mandatory,
     HelpMessage="Add end date of Billing report in format YYYY-MM-DD")]
     [Alias("dateto")]
-    [DateTime]$reportDateTo = (Get-Date -day 1),
+    [DateTime]$reportDateTo = (Get-Date -Day 1),
 
     [Alias("s")]
     [string]$subscriptionId = $null,
@@ -27,6 +19,22 @@ param (
     [Alias("outfile")]
     [string]$outFilename = $null
 )
+
+# Usage:
+# .\Export-AzureBilling.ps1 -reportDateFrom "2024-01-01" \
+#  -reportDateTo "2024-03-31" \
+#  -type "Usage" \
+#  -subscriptionId "00000000-0000-0000-0000-000000000000" \
+#  -outFilename "AzureBillingReport.csv"
+
+
+# Install CostManagement Module
+# Install-Module Az.CostManagement
+$moduleName = "Az.CostManagement"
+if (-not (Get-Module -ListAvailable -Name $moduleName)) {
+    Install-Module -Name $moduleName -Repository PSGallery -Scope CurrentUser -Force
+}
+Import-Module $moduleName
 
 if ( $subscriptionId ) {
     $subscriptions = Get-AzSubscription -SubscriptionId $subscriptionId
