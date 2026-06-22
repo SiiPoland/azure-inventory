@@ -20,7 +20,7 @@ https://github.com/tfitzmac/resource-capabilities/blob/master/move-support-resou
 param (
     [string]$SubscriptionId = "",
 
-    [switch]$with_Tags = $true,
+    [switch]$with_Tags,
 
     [int]$Subscription_Limit = 0,
 
@@ -28,6 +28,11 @@ param (
 
     [switch]$DebugMode
 )
+
+if (-not $PSBoundParameters.ContainsKey('with_Tags')) {
+    $with_Tags = $true
+}
+
 if ($SubscriptionId) {
     $selected_SubscriptionId = $SubscriptionId
 }
@@ -36,47 +41,60 @@ else {
 }
 
 # Helper Functions
-function Log-Info($msg) {
+function Write-InfoLog($msg) {
     Write-Host "[INFO] $msg"
 }
-function Log-Debug($msg) {
+function Write-DebugLog($msg) {
     if ($DebugMode) { Write-Host "[DEBUG] $msg" -ForegroundColor Cyan }
 }
-function Log-Error($msg) {
+function Write-ErrorLog($msg) {
     Write-Host "[ERROR] $msg" -ForegroundColor Red
+}
+
+$script:EnsuredModules = @{}
+function Ensure-AzModule {
+    param([string]$CommandName, [string]$ModuleName)
+    if (-not (Get-Command $CommandName -ErrorAction SilentlyContinue)) {
+        if (-not $script:EnsuredModules[$ModuleName]) {
+            Write-InfoLog "Module '$ModuleName' not found. Installing..."
+            Install-Module -Name $ModuleName -Force -AllowClobber -Scope CurrentUser -WarningAction SilentlyContinue
+            Import-Module -Name $ModuleName -Force -WarningAction SilentlyContinue
+            $script:EnsuredModules[$ModuleName] = $true
+        }
+    }
 }
 
 # Ensure user is logged in to Azure
 if (!(Get-AzContext)) {
-    Log-Debug "Logging in to Azure..."
+    Write-DebugLog "Logging in to Azure..."
     Login-AzAccount
 }
 
 function Main {
-    Log-Info "*** Azure Inventory ***"
-    Log-Info "==========================================================================="
-    Log-Info "Script for preparing a report of all resources in selected subscriptions"
-    Log-Info "             Tags Used: $with_Tags"
-    Log-Info "            Debug Mode: $DebugMode"
-    Log-Info " Selected Subscription: $SubscriptionId"
-    Log-Info "    Subscription Limit: $Subscription_Limit"
-    Log-Info " Continue previous job: $Continue"
-    Log-Info "==========================================================================="
+    Write-InfoLog "*** Azure Inventory ***"
+    Write-InfoLog "==========================================================================="
+    Write-InfoLog "Script for preparing a report of all resources in selected subscriptions"
+    Write-InfoLog "             Tags Used: $with_Tags"
+    Write-InfoLog "            Debug Mode: $DebugMode"
+    Write-InfoLog " Selected Subscription: $SubscriptionId"
+    Write-InfoLog "    Subscription Limit: $Subscription_Limit"
+    Write-InfoLog " Continue previous job: $Continue"
+    Write-InfoLog "==========================================================================="
 
     # Create a folder for the processing
     $workDirectory = Join-Path -Path (Get-Location).Path -ChildPath ".tmpdir"
-    Log-Debug "Work Directory: $workDirectory"
+    Write-DebugLog "Work Directory: $workDirectory"
 
     # If new job then remove temporary folder and recreate new one
     if (-not $Continue) {
-        Log-Debug "Removing $workDirectory"
+        Write-DebugLog "Removing $workDirectory"
         Remove-Item -Path $workDirectory -WarningAction SilentlyContinue -Recurse -Force
     }
-    Log-Debug "Creating $workDirectory"
+    Write-DebugLog "Creating $workDirectory"
     New-Item -ItemType Directory -Force -Path $workDirectory | Out-Null
 
     # Import Resource Move to Region Capabilities from GitHub
-    Log-Info "Import Resource Move Capabilities Data between Regions"
+    Write-InfoLog "Import Resource Move Capabilities Data between Regions"
     $ResourceCapabilitiesData = Import-ResourceMoveCapabilities
 
     # Define report array
@@ -124,19 +142,19 @@ function Main {
 
         # Skip subscriptions and process only selected one
         if ($selected_SubscriptionId -ne "" -and $Subscription.SubscriptionId -ne $selected_SubscriptionId) {
-            Log-Debug "skip subscription: $($Subscription.SubscriptionId)"
+            Write-DebugLog "skip subscription: $($Subscription.SubscriptionId)"
             continue
         }
 
         # Stop processing after defined limit of subscriptions
         if ($Subscription_Limit -gt 0 -and $SubscriptionNumber -gt $Subscription_Limit) {
-            Log-Debug "stop after reaching limit of processed subscriptions"
+            Write-DebugLog "stop after reaching limit of processed subscriptions"
             break
         }
 
         # Skip already processed subscriptions if job is a continuation
         if ($Continue -and $Subscription.Procesed) {
-            Log-Debug "skip already processed subscription"
+            Write-DebugLog "skip already processed subscription"
             continue
         }
 
@@ -148,11 +166,11 @@ function Main {
 
         Select-AzSubscription -SubscriptionId $SubscriptionID | Out-Null
 
-        Log-Info "- Get Resources from Subscription ($SubscriptionNumber/$($subscriptions.Count)): '$SubscriptionName' ($SubscriptionID)"
+        Write-InfoLog "- Get Resources from Subscription ($SubscriptionNumber/$($subscriptions.Count)): '$SubscriptionName' ($SubscriptionID)"
         $handledTypes = $resourceHandlers.Keys
-        Log-Debug "- Handled Resource Types: $($handledTypes -join ', ')"
+        Write-DebugLog "- Handled Resource Types: $($handledTypes -join ', ')"
         $AzureResources = Get-AzResource | Where-Object { $handledTypes -contains $_.ResourceType }
-        Log-Info "- Found $($AzureResources.Count) resources"
+        Write-InfoLog "- Found $($AzureResources.Count) resources"
 
         # Define new Report array
         $report = @()
@@ -160,7 +178,7 @@ function Main {
         $ResourceNumber = 0
         foreach ($resource in $AzureResources) {
             $ResourceNumber++
-            Log-Info "- Resource $ResourceNumber / $($AzureResources.Count) (sub: $SubscriptionNumber / $($subscriptions.Count)) : $($resource.ResourceType) : $($resource.Name)"
+            Write-InfoLog "- Resource $ResourceNumber / $($AzureResources.Count) (sub: $SubscriptionNumber / $($subscriptions.Count)) : $($resource.ResourceType) : $($resource.Name)"
 
             try {
                 # Create Report Item for Azure Resource
@@ -196,11 +214,11 @@ function Main {
     
             }
             catch {
-                Log-Error "Failed to process resource: $($ResourceItem.Name)"
-                Log-Error "  Message : $($_.Exception.Message)"
-                Log-Error "  Line    : $($_.InvocationInfo.ScriptLineNumber)"
-                Log-Error "  File    : $($_.InvocationInfo.ScriptName)"
-                Log-Error "  Code    : $($_.InvocationInfo.Line.Trim())"
+                Write-ErrorLog "Failed to process resource: $($ResourceItem.Name)"
+                Write-ErrorLog "  Message : $($_.Exception.Message)"
+                Write-ErrorLog "  Line    : $($_.InvocationInfo.ScriptLineNumber)"
+                Write-ErrorLog "  File    : $($_.InvocationInfo.ScriptName)"
+                Write-ErrorLog "  Code    : $($_.InvocationInfo.Line.Trim())"
                 exit 1
             }
         }
@@ -232,11 +250,11 @@ function Main {
 
     if ( !$report )
     {
-        Log-Error 'No resources found'
+        Write-ErrorLog 'No resources found'
     }
     else {
         
-        Log-Info "Processing Report Headers"
+        Write-InfoLog "Processing Report Headers"
 
         # define an array of headers
         $headers = @{}
@@ -263,16 +281,16 @@ function Main {
 function Import-ResourceMoveCapabilities {
 
     # Import Resource Move Capabilities Data between Regions
-    Log-Info "Import Resource Move Capabilities Data between Regions"
+    Write-InfoLog "Import Resource Move Capabilities Data between Regions"
 
     # Check if the file exists, if not download it
     $file_ResourceCapabilities = Join-Path -Path $workDirectory -ChildPath "ResourceCapabilities.csv"
     if (-not (Test-Path -Path $file_ResourceCapabilities)) {
-        Log-Debug "- Download Resource Move Capabilities Data between Regions"
+        Write-DebugLog "- Download Resource Move Capabilities Data between Regions"
         $ResourceCapabilities = ConvertFrom-Csv (Invoke-WebRequest "https://raw.githubusercontent.com/tfitzmac/resource-capabilities/master/move-support-resources-with-regions.csv").Content
         $ResourceCapabilities | ConvertTo-Csv -NoTypeInformation | Out-File -FilePath $file_ResourceCapabilities -Force
     } else {
-        Log-Debug "- Read Resource Move Capabilities Data between Regions"
+        Write-DebugLog "- Read Resource Move Capabilities Data between Regions"
         $ResourceCapabilities = Get-Content -Path $file_ResourceCapabilities | ConvertFrom-Csv
     }
 
@@ -313,7 +331,7 @@ function Get-AvailableAzureSubscriptions {
 
     # Get all available subscriptions
     if (-not $Continue -or -not (Test-Path -Path $file_SubscriptionList)) {
-        Log-Info "Get Azure Subscriptions List"
+        Write-InfoLog "Get Azure Subscriptions List"
         $subscriptionsList = Get-AzSubscription | Sort-Object Name
         foreach ($subscription in $subscriptionsList) {
             $SubscriptionItem = New-Object SubscriptionItem
@@ -324,10 +342,10 @@ function Get-AvailableAzureSubscriptions {
         }
         $subscriptions | ConvertTo-Json | Out-File -FilePath $file_SubscriptionList -Force
     } else {
-        Log-Info "- Read Azure Subscriptions List"
+        Write-InfoLog "- Read Azure Subscriptions List"
         $subscriptions = Get-Content -Path $file_SubscriptionList | ConvertFrom-Json
     }
-    Log-Info "  - Found $($subscriptions.Count) subscriptions"
+    Write-InfoLog "  - Found $($subscriptions.Count) subscriptions"
 
     # Sort subscriptions by Id
     return $subscriptions | Sort-Object SubscriptionId
@@ -340,7 +358,7 @@ function Get-AvailableAzureSubscriptions {
 function Export {
     param($headers, $report)
 
-    Log-Info "Output Report"
+    Write-InfoLog "Output Report"
 
     $headers_array = @()
 
@@ -371,19 +389,19 @@ function Export {
         $Report_AzureStorageAccount  = ""
         $Report_AzureStorageShare    = ""
     }
-    Log-Debug "Report File CSV: $ReportFile_csv"
-    Log-Debug "Report File JSON: $ReportFile_json"
+    Write-DebugLog "Report File CSV: $ReportFile_csv"
+    Write-DebugLog "Report File JSON: $ReportFile_json"
 
     $report | Select-Object -prop $headers_array | Sort-Object | Export-CSV -NoTypeInformation -Path $ReportFile_csv
     $report | Select-Object -prop $headers_array | Sort-Object | ConvertTo-Json | Out-File $ReportFile_json
 
-    Log-Info "Your report is completed"
-    Log-Info "         File Name: " + $ReportFile_csv
+    Write-InfoLog "Your report is completed"
+    Write-InfoLog "         File Name: " + $ReportFile_csv
     if ( $is_CloudShell ) {
-        Log-Info "Azure Storage Account: $Report_AzureStorageAccount"
-        Log-Info "File Share: $Report_AzureStorageShare"
+        Write-InfoLog "Azure Storage Account: $Report_AzureStorageAccount"
+        Write-InfoLog "File Share: $Report_AzureStorageShare"
     } else {
-        Log-Info "Local Path: $ReportFile_csv"
+        Write-InfoLog "Local Path: $ReportFile_csv"
     }
 }
 
@@ -447,6 +465,7 @@ $resourceHandlers = @{
 
 function Get-MicrosoftCompute-virtualMachines {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzVM' -ModuleName 'Az.Compute'
     $vm = Get-AzVM -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name -WarningAction SilentlyContinue
     $reportItem.LicenseType  = $resource.LicenseType
     $reportItem.SkuSize      = $vm.HardwareProfile.VmSize
@@ -459,6 +478,7 @@ function Get-MicrosoftCompute-virtualMachines {
 
 function Get-MicrosoftApiManagement-service {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzApiManagement' -ModuleName 'Az.ApiManagement'
     $resourceData = Get-AzApiManagement -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.SkuName = $resourceData.Sku
     $reportItem.SkuCapacity = $resourceData.Capacity
@@ -469,6 +489,7 @@ function Get-MicrosoftApiManagement-service {
 
 function Get-MicrosoftApp-containerApps {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzContainerApp' -ModuleName 'Az.App'
     $resourceData = Get-AzContainerApp -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.WorkloadProfileName = $resourceData.WorkloadProfileName
     $reportItem.ManagedBy = $resourceData.ManagedBy
@@ -478,6 +499,7 @@ function Get-MicrosoftApp-containerApps {
 
 function Get-MicrosoftCache-Redis {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzRedisCache' -ModuleName 'Az.RedisCache'
     $resourceData = Get-AzRedisCache -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.StorageSize = $resourceData.Size
     $reportItem.SkuName = $resourceData.Sku
@@ -487,6 +509,7 @@ function Get-MicrosoftCache-Redis {
 
 function Get-microsoftcdn-profiles {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzCdnProfile' -ModuleName 'Az.Cdn'
     $resourceData = Get-AzCdnProfile -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.SkuName = $resourceData.SkuName
     $reportItem.ManagedBy = $resourceData.FrontDoorId
@@ -495,6 +518,7 @@ function Get-microsoftcdn-profiles {
 
 function Get-MicrosoftCognitiveServices-accounts {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzCognitiveServicesAccount' -ModuleName 'Az.CognitiveServices'
     $resourceData = Get-AzCognitiveServicesAccount -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.SkuName = $resourceData.Sku.Name
     $reportItem.SkuTier = $resourceData.Sku.Tier
@@ -507,6 +531,7 @@ function Get-MicrosoftCognitiveServices-accounts {
 
 function Get-MicrosoftCompute-disks {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzDisk' -ModuleName 'Az.Compute'
     $resourceData = Get-AzDisk -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -DiskName $resource.Name
     $reportItem.OsType = $resourceData.OsType
     $reportItem.StorageSize = $resourceData.DiskSizeGB
@@ -518,6 +543,7 @@ function Get-MicrosoftCompute-disks {
 
 function Get-MicrosoftCompute-snapshots {
     param($resource, $reportItem)        
+    Ensure-AzModule -CommandName 'Get-AzSnapshot' -ModuleName 'Az.Compute'
     $resourceData = Get-AzSnapshot -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.OsType = $resourceData.OsType
     $reportItem.StorageSize = $resourceData.DiskSizeGB
@@ -529,6 +555,7 @@ function Get-MicrosoftCompute-snapshots {
 
 function Get-MicrosoftContainerInstance-containerGroups {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzContainerGroup' -ModuleName 'Az.ContainerInstance'
     $resourceData = Get-AzContainerGroup -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.OsType = $resourceData.OsType
     $reportItem.SkuName = $resourceData.Sku
@@ -537,6 +564,7 @@ function Get-MicrosoftContainerInstance-containerGroups {
 
 function Get-MicrosoftContainerRegistry-registries {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzContainerRegistry' -ModuleName 'Az.ContainerRegistry'
     $resourceData = Get-AzContainerRegistry -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.SkuName = $resourceData.SkuName
     $reportItem.SkuTier = $resourceData.SkuTier
@@ -547,7 +575,7 @@ function Get-MicrosoftContainerRegistry-registries {
 function Get-MicrosoftContainerService-containerservices {
     param($resource, $reportItem)
     # $resourceData = Get-AzKubernetesCluster -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
-    # Log-Debug "resourceData: $($resourceData | ConvertTo-Json)"
+    # Write-DebugLog "resourceData: $($resourceData | ConvertTo-Json)"
     # exit
     # $reportItem.SkuName = $resourceData.SkuName
     # $reportItem.SkuTier = $resourceData.SkuTier
@@ -557,6 +585,7 @@ function Get-MicrosoftContainerService-containerservices {
 
 function Get-MicrosoftDatabricks-workspaces {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzDatabricksWorkspace' -ModuleName 'Az.Databricks'
     $resourceData = Get-AzDatabricksWorkspace -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.SkuName = $resourceData.NetworkProfile.IpConfigurations.SkuName
     $reportItem.SkuTier = $resourceData.NetworkProfile.IpConfigurations.SkuTier
@@ -571,6 +600,7 @@ function Get-MicrosoftDataFactory-factories {
 
 function Get-MicrosoftDBforMariaDB-servers {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzMariaDBServer' -ModuleName 'Az.MariaDb'
     $resourceData = Get-AzMariaDBServer -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.SkuName = $resourceData.SkuName
     $reportItem.SkuTier = $resourceData.SkuTier
@@ -582,6 +612,7 @@ function Get-MicrosoftDBforMariaDB-servers {
 
 function Get-MicrosoftDBforMySQL-flexibleServers {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzMySqlFlexibleServer' -ModuleName 'Az.MySql'
     $resourceData = Get-AzMySqlFlexibleServer -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.SkuName = $resourceData.SkuName
     $reportItem.SkuTier = $resourceData.SkuTier
@@ -593,6 +624,7 @@ function Get-MicrosoftDBforMySQL-flexibleServers {
 
 function Get-MicrosoftDBforMySQL-servers {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzMySqlServer' -ModuleName 'Az.MySql'
     $resourceData = Get-AzMySqlServer -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.SkuName = $resourceData.SkuName
     $reportItem.SkuTier = $resourceData.SkuTier
@@ -604,6 +636,7 @@ function Get-MicrosoftDBforMySQL-servers {
 
 function Get-MicrosoftDBforPostgreSQL-flexibleServers {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzPostgreSqlFlexibleServer' -ModuleName 'Az.PostgreSql'
     $resourceData = Get-AzPostgreSqlFlexibleServer -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.SkuName = $resourceData.SkuName
     $reportItem.SkuTier = $resourceData.SkuTier
@@ -614,6 +647,7 @@ function Get-MicrosoftDBforPostgreSQL-flexibleServers {
 
 function Get-MicrosoftDBforPostgreSQL-servers {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzPostgreSqlServer' -ModuleName 'Az.PostgreSql'
     $resourceData = Get-AzPostgreSqlServer -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.Kind = $resourceData.Kind
     $reportItem.SkuCapacity = $resourceData.SkuCapacity
@@ -627,6 +661,7 @@ function Get-MicrosoftDBforPostgreSQL-servers {
 
 function Get-MicrosoftDocumentDb-databaseAccounts {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzCosmosDBAccount' -ModuleName 'Az.CosmosDB'
     $resourceData = Get-AzCosmosDBAccount -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.OfferType = $resourceData.DatabaseAccountOfferType
     $reportItem.Kind = $resourceData.Kind
@@ -637,6 +672,7 @@ function Get-MicrosoftDocumentDb-databaseAccounts {
 
 function Get-MicrosoftEventHub-namespaces {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzEventHubNamespace' -ModuleName 'Az.EventHub'
     $resourceData = Get-AzEventHubNamespace -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.SkuCapacity = $resourceData.SkuCapacity
     $reportItem.SkuName = $resourceData.SkuName
@@ -659,7 +695,7 @@ function Get-MicrosoftFabric-capacities {
 function Get-MicrosoftHDInsight-clusters {
     param($resource, $reportItem)
     # $resourceData = Get-AzHDInsightCluster -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
-    # Log-Debug "resourceData: $($resourceData | ConvertTo-Json)"
+    # Write-DebugLog "resourceData: $($resourceData | ConvertTo-Json)"
     # exit
     # $reportItem.SkuName = $resourceData.ClusterType
     # $reportItem.SkuTier = $resourceData.SkuTier
@@ -671,7 +707,7 @@ function Get-MicrosoftHDInsight-clusters {
 function Get-MicrosoftIoTHub-iothub {
     param($resource, $reportItem)
     # $resourceData = Get-AzIotHub -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
-    # Log-Debug "resourceData: $($resourceData | ConvertTo-Json)"
+    # Write-DebugLog "resourceData: $($resourceData | ConvertTo-Json)"
     # exit
     # $reportItem.SkuName = $resourceData.Sku.Name
     # $reportItem.SkuTier = $resourceData.Sku.Tier
@@ -682,6 +718,7 @@ function Get-MicrosoftIoTHub-iothub {
 
 function Get-MicrosoftKeyVault-vaults {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzKeyVault' -ModuleName 'Az.KeyVault'
     $ResourceData = Get-AzKeyVault -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.SkuName = $ResourceData.Sku
     return $reportItem
@@ -689,6 +726,7 @@ function Get-MicrosoftKeyVault-vaults {
 
 function Get-MicrosoftKusto-clusters {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzKustoCluster' -ModuleName 'Az.Kusto'
     $resourceData = Get-AzKustoCluster -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.SkuCapacity = $resourceData.SkuCapacity
     $reportItem.SkuName = $resourceData.SkuName
@@ -704,6 +742,7 @@ function Get-MicrosoftLogic-workflows {
 
 function Get-MicrosoftMachineLearningServices-workspaces {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzMlWorkspace' -ModuleName 'Az.MachineLearningServices'
     $resourceData = Get-AzMlWorkspace -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.Kind = $resourceData.Kind
     $reportItem.SkuCapacity = $resourceData.SkuCapacity
@@ -716,6 +755,7 @@ function Get-MicrosoftMachineLearningServices-workspaces {
 
 function Get-MicrosoftNetwork-applicationGateways {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzApplicationGateway' -ModuleName 'Az.Network'
     $resourceData = Get-AzApplicationGateway -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.SkuName = $resourceData.Sku.Name
     $reportItem.SkuTier = $resourceData.Sku.Tier
@@ -725,6 +765,7 @@ function Get-MicrosoftNetwork-applicationGateways {
 
 function Get-MicrosoftNetwork-azureFirewalls {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzFirewall' -ModuleName 'Az.Network'
     $resourceData = Get-AzFirewall -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.SkuName = $resourceData.Sku.Name
     $reportItem.SkuTier = $resourceData.Sku.Tier
@@ -733,6 +774,7 @@ function Get-MicrosoftNetwork-azureFirewalls {
 
 function Get-MicrosoftNetwork-bastionHosts {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzBastion' -ModuleName 'Az.Network'
     $resourceData = Get-AzBastion -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.FQDN = $resourceData.DnsName
     $reportItem.SkuName = $resourceData.Sku.Name
@@ -742,6 +784,7 @@ function Get-MicrosoftNetwork-bastionHosts {
 
 function Get-MicrosoftNetwork-dnsZones {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzDnsZone' -ModuleName 'Az.Dns'
     $resourceData = Get-AzDnsZone -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.Type = $resourceData.ZoneType
     return $reportItem
@@ -749,6 +792,7 @@ function Get-MicrosoftNetwork-dnsZones {
 
 function Get-MicrosoftNetwork-firewallPolicies {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzFirewallPolicy' -ModuleName 'Az.Network'
     $resourceData = Get-AzFirewallPolicy -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.SkuTier = $resourceData.Sku.Tier
     return $reportItem
@@ -761,6 +805,7 @@ function Get-MicrosoftNetwork-frontdoors {
 
 function Get-MicrosoftNetwork-natGateways {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzNatGateway' -ModuleName 'Az.Network'
     $resourceData = Get-AzNatGateway -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.SkuName = $resourceData.Sku.Name
     return $reportItem
@@ -768,6 +813,7 @@ function Get-MicrosoftNetwork-natGateways {
 
 function Get-MicrosoftNetwork-publicIPAddresses {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzPublicIpAddress' -ModuleName 'Az.Network'
     $resourceData = Get-AzPublicIpAddress -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.IpAddressPublic = $resourceData.IpAddress
     $reportItem.SkuName = $resourceData.Sku.Name
@@ -777,6 +823,7 @@ function Get-MicrosoftNetwork-publicIPAddresses {
 
 function Get-MicrosoftNetwork-virtualHubs {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzVirtualHub' -ModuleName 'Az.Network'
     $resourceData = Get-AzVirtualHub -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.SkuName = $resourceData.Sku
     return $reportItem
@@ -784,6 +831,7 @@ function Get-MicrosoftNetwork-virtualHubs {
 
 function Get-MicrosoftNetwork-virtualNetworkGateways {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzVirtualNetworkGateway' -ModuleName 'Az.Network'
     $resourceData = Get-AzVirtualNetworkGateway -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.Type = $resourceData.VpnType
     $reportItem.SkuCapacity = $resourceData.Sku.Capacity
@@ -794,6 +842,7 @@ function Get-MicrosoftNetwork-virtualNetworkGateways {
 
 function Get-MicrosoftNetwork-vpnGateways {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzVpnGateway' -ModuleName 'Az.Network'
     $resourceData = Get-AzVpnGateway -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.SkuCapacity = $resourceData.VpnGatewayScaleUnit
     return $reportItem
@@ -801,6 +850,7 @@ function Get-MicrosoftNetwork-vpnGateways {
 
 function Get-MicrosoftNetwork-virtualWans {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzVirtualWan' -ModuleName 'Az.Network'
     $resourceData = Get-AzVirtualWan -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.Type = $resourceData.VirtualWanType
     return $reportItem
@@ -808,6 +858,7 @@ function Get-MicrosoftNetwork-virtualWans {
 
 function Get-MicrosoftRelay-namespaces {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzRelayNamespace' -ModuleName 'Az.Relay'
     $resourceData = Get-AzRelayNamespace -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.SkuName = $resourceData.SkuName
     $reportItem.SkuTier = $resourceData.SkuTier
@@ -818,7 +869,7 @@ function Get-MicrosoftRelay-namespaces {
 function Get-MicrosoftSaaS-applications {
     param($resource, $reportItem)
     # $resourceData = Get-AzSaaSApplication -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
-    # Log-Debug "resourceData: $($resourceData | ConvertTo-Json)"
+    # Write-DebugLog "resourceData: $($resourceData | ConvertTo-Json)"
     # exit
     # $reportItem.SkuName = $resourceData.SkuName
     # $reportItem.SkuTier = $resourceData.SkuTier
@@ -828,6 +879,7 @@ function Get-MicrosoftSaaS-applications {
 
 function Get-MicrosoftServiceBus-namespaces {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzServiceBusNamespace' -ModuleName 'Az.ServiceBus'
     $resourceData = Get-AzServiceBusNamespace -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.SkuCapacity = $resourceData.SkuCapacity
     $reportItem.SkuName = $resourceData.SkuName
@@ -838,7 +890,7 @@ function Get-MicrosoftServiceBus-namespaces {
 function Get-MicrosoftSql-managedinstances {
     param($resource, $reportItem)
     # $resourceData = Get-AzSqlInstance -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
-    # Log-Debug "resourceData: $($resourceData | ConvertTo-Json)"
+    # Write-DebugLog "resourceData: $($resourceData | ConvertTo-Json)"
     # exit
     # $reportItem.SkuName = $resourceData.SkuName
     # $reportItem.SkuFamily = $resourceData.SkuFamily
@@ -848,6 +900,7 @@ function Get-MicrosoftSql-managedinstances {
 
 function Get-MicrosoftSql-servers-databases {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzSqlDatabase' -ModuleName 'Az.Sql'
     $ServerName = $resource.Name.Split("/")[0]
     $DBName = $resource.Name.Split("/")[1]
     $ResourceData = Get-AzSqlDatabase -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -ServerName $ServerName -DatabaseName $DBName
@@ -859,6 +912,7 @@ function Get-MicrosoftSql-servers-databases {
 
 function Get-MicrosoftSql-servers-elasticpools {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzSqlElasticPool' -ModuleName 'Az.Sql'
     $ServerName = $resource.Name.Split("/")[0]
     $ResourceData = Get-AzSqlElasticPool -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -ServerName $ServerName
     $reportItem.SkuName = $ResourceData.SkuName
@@ -869,7 +923,7 @@ function Get-MicrosoftSql-servers-elasticpools {
 
 function Get-MicrosoftStorage-storageAccounts {
     param($resource, $reportItem)
-    $resourceData = Get-AzStorageAccount -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
+    # $resourceData = Get-AzStorageAccount -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.Kind = $ResourceItem.Kind
     $reportItem.SkuName = $ResourceItem.Sku.Name
     $reportItem.SkuTier = $ResourceItem.Sku.Tier
@@ -879,6 +933,7 @@ function Get-MicrosoftStorage-storageAccounts {
 
 function Get-MicrosoftWeb-serverFarms {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzAppServicePlan' -ModuleName 'Az.Websites'
     $resourceData = Get-AzAppServicePlan -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.SkuName = $resourceData.Sku.Name
     $reportItem.SkuTier = $resourceData.Sku.Tier
@@ -891,6 +946,7 @@ function Get-MicrosoftWeb-serverFarms {
 
 function Get-MicrosoftWeb-sites {
     param($resource, $reportItem)
+    Ensure-AzModule -CommandName 'Get-AzWebApp' -ModuleName 'Az.Websites'
     $resourceData = Get-AzWebApp -WarningAction SilentlyContinue -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
     $reportItem.State = $resourceData.State
     $reportItem.ManagedBy = $resourceData.ServerFarmId
