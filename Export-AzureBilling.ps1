@@ -111,6 +111,7 @@ Foreach( $subscription in $subscriptions ) {
 
     $subscriptionId = $subscription.Id
     $subscriptionName = $subscription.Name
+    Set-AzContext -SubscriptionId $subscriptionId -TenantId $subscription.TenantId -ErrorAction Stop | Out-Null
 
     for ($monthNumber = 0; $monthNumber -lt $months; $monthNumber++) {
         $startDate = (Get-Date -day 1 -Month $reportDateFrom.Month -Year $reportDateFrom.Year ).AddMonths($monthNumber)
