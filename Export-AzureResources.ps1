@@ -169,7 +169,7 @@ function Main {
         Write-InfoLog "- Get Resources from Subscription ($SubscriptionNumber/$($subscriptions.Count)): '$SubscriptionName' ($SubscriptionID)"
         $handledTypes = $resourceHandlers.Keys
         Write-DebugLog "- Handled Resource Types: $($handledTypes -join ', ')"
-        $AzureResources = Get-AzResource | Where-Object { $handledTypes -contains $_.ResourceType }
+        $AzureResources = Get-AzResource
         Write-InfoLog "- Found $($AzureResources.Count) resources"
 
         # Define new Report array
