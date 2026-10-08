@@ -7,11 +7,19 @@ param(
     [string]$ScriptResourceGroupsName = "Export-AzureResourceGroups.ps1"
 )
 
+if ($PSStyle) {
+    $PSStyle.OutputRendering = "PlainText"
+    $PSStyle.Formatting.Warning = ""
+    $PSStyle.Formatting.Error = ""
+    $PSStyle.Formatting.Verbose = ""
+    $PSStyle.Formatting.Debug = ""
+}
+
 Write-Output "Downloading script from Azure Storage Account: $StorageAccountName, Container: $ScriptContainerName, Script: $ScriptName"
 Write-Output "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")] Start..."
 
 # UAMI Auth
-Connect-AzAccount -Identity | Out-Null
+Connect-AzAccount -Identity -SkipContextPopulation -WarningAction SilentlyContinue | Out-Null
 
 $ctx = New-AzStorageContext -StorageAccountName $StorageAccountName -UseConnectedAccount
 
@@ -48,7 +56,7 @@ $csvFiles = Get-ChildItem -Filter "Azure*.csv"
 
 Foreach ($csvFile in $csvFiles) {
     Write-Output "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")] Uploading report: $($csvFile.FullName)..."
-    Set-AzStorageBlobContent -Container $ReportContainerName -File $csvFile.FullName -Blob $csvFile.Name -Context $ctx -Force
+    Set-AzStorageBlobContent -Container $ReportContainerName -File $csvFile.FullName -Blob $csvFile.Name -Context $ctx -Force | Out-Null
 }
 
 Write-Output "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")] Done."

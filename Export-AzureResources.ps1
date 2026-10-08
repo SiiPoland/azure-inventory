@@ -45,10 +45,10 @@ function Write-InfoLog($msg) {
     Write-Host "[INFO] $msg"
 }
 function Write-DebugLog($msg) {
-    if ($DebugMode) { Write-Host "[DEBUG] $msg" -ForegroundColor Cyan }
+    if ($DebugMode) { Write-Host "[DEBUG] $msg" }
 }
 function Write-ErrorLog($msg) {
-    Write-Host "[ERROR] $msg" -ForegroundColor Red
+    Write-Host "[ERROR] $msg"
 }
 
 $script:EnsuredModules = @{}
